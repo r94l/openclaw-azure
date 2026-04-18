@@ -29,18 +29,10 @@ sudo chmod 600 /home/openclaw/.ssh/authorized_keys
 sudo ufw default deny incoming 
 sudo ufw default allow outgoing 
 # Allow the FUTURE port 
+sudo ufw allow 22/tcp 
 sudo ufw allow 2222/tcp 
 # Enable the firewall 
 sudo ufw --force enable
-
-# Disable password authentication (key-only login)
-sed -i 's/^#\?PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config
-
-# Change SSH port to 2222
-sed -i 's/^#\?Port.*/Port 2222/' /etc/ssh/sshd_config
-
-# Disable root login
-sed -i 's/^#\?PermitRootLogin.*/PermitRootLogin no/' /etc/ssh/sshd_config
 
 # Stop the socket listener
 sudo systemctl stop ssh.socket 
@@ -49,16 +41,28 @@ sudo systemctl disable ssh.socket
 sudo systemctl restart ssh
 
 # Install Docker dependencies 
-sudo apt install apt-transport-https ca-certificates 
-curl software-properties-common -y 
+sudo apt update
+sudo apt install -y ca-certificates curl gnupg lsb-release
 # Add Docker GPG key & Repository 
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg echo "deb [arch= $(dpkg --print-architecture ) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs ) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null 
+sudo mkdir -p /etc/apt/keyrings
+
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | \
+sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+
+# Install Docker repository
+echo \
+"deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+$(lsb_release -cs) stable" | \
+sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+
 # Install Docker 
 sudo apt update 
-sudo apt install docker-ce docker-ce-cli containerd.io docker-compose-plugin -y 
-# Allow 'openclaw' user to run Docker without sudo 
-sudo usermod -aG docker ${ USER }
+sudo apt update
+sudo apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 
+# Allow 'openclaw' user to run Docker without sudo 
+sudo usermod -aG docker openclaw
 newgrp docker
 
 echo "Userdata script completed successfully"

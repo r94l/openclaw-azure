@@ -36,18 +36,6 @@ resource "aws_iam_role" "ec2_role" {
   }
 }
 
-# Attach ECR Read Only policy to EC2 role
-resource "aws_iam_role_policy_attachment" "ecr_policy" {
-  role       = aws_iam_role.ec2_role.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
-}
-
-# Attach Secrets Manager policy to EC2 role
-resource "aws_iam_role_policy_attachment" "secrets_policy" {
-  role       = aws_iam_role.ec2_role.name
-  policy_arn = "arn:aws:iam::aws:policy/SecretsManagerReadWrite"
-}
-
 # Create instance profile for EC2
 resource "aws_iam_instance_profile" "ec2_profile" {
   name = "${var.project_name}-ec2-profile"
@@ -70,7 +58,14 @@ resource "aws_security_group" "clawdthebutler_sg" {
     cidr_blocks = ["0.0.0.0/0"] # Restrict to your IP in production
   }
 
-  }
+   # SSH - only from your IP
+  ingress {
+    description = "SSH"
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"] # Restrict to your IP in production
+
 
   # Allow all outbound traffic
   egress {
@@ -84,6 +79,7 @@ resource "aws_security_group" "clawdthebutler_sg" {
     Name        = "${var.project_name}-sg"
     Environment = var.environment
   }
+
 }
 
 # EC2 Instance
