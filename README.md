@@ -1,4 +1,4 @@
-# openclaw-aws
+# openclaw-azure
 
 Deploy OpenClaw (Moltbot/Clawdbot) as a 24/7 AI agent on AWS EC2 using Docker and Tailscale — hardened, containerized, and privately accessible with zero public ports exposed.
 
