@@ -1,0 +1,36 @@
+# ──────────────────────────────────────────────────────────────────────────
+# terraform.tfvars — copy this to terraform.tfvars and fill in your values
+# DO NOT commit this file to git (it contains secrets)
+# It is already listed in .gitignore
+# ──────────────────────────────────────────────────────────────────────────
+
+# Azure region — southafricanorth is closest to Lagos but costs slightly more.
+# eastus and westeurope are well-priced and reliable.
+location = "eastus"
+
+# Resource name prefix
+prefix = "openclaw"
+
+# VM size — Standard_B2s = 2 vCPU, 4 GB RAM (~$30/mo)
+# Upgrade to Standard_D2s_v3 (~$70/mo) if you want faster I/O
+vm_size = "Standard_B2s"
+
+# Your SSH username on the VM
+admin_username = "openclaw"
+
+# Non-standard SSH port — port 22 is never opened
+ssh_port = 2222
+
+# Your home/office IP in CIDR — get it with: curl ifconfig.me
+# Replace with your actual IP before applying
+allowed_ssh_cidr = "YOUR_IP_HERE/32"
+
+# Tailscale auth key
+# Generate at: https://login.tailscale.com/admin/settings/keys
+# Use a reusable key with expiry, or an ephemeral key
+# Best practice: pass via environment variable instead of this file:
+#   export TF_VAR_tailscale_authkey="tskey-auth-xxxx"
+tailscale_authkey = "tskey-auth-REPLACE_ME"
+
+# OpenClaw Docker image tag
+openclaw_version = "latest"
