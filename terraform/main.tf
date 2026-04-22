@@ -19,7 +19,7 @@ resource "azurerm_resource_group" "rg" {
 
 # Virtual Network
 resource "azurerm_virtual_network" "vnet" {
-  name                = "ai-agent-vnet"
+  name                = "openclaw-vnet"
   address_space       = ["10.0.0.0/16"]
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
@@ -27,7 +27,7 @@ resource "azurerm_virtual_network" "vnet" {
 
 # Subnet
 resource "azurerm_subnet" "subnet" {
-  name                 = "ai-agent-subnet"
+  name                 = "openclaw-subnet"
   resource_group_name  = azurerm_resource_group.rg.name
   virtual_network_name = azurerm_virtual_network.vnet.name
   address_prefixes     = ["10.0.1.0/24"]
@@ -35,7 +35,7 @@ resource "azurerm_subnet" "subnet" {
 
 # Public IP
 resource "azurerm_public_ip" "pip" {
-  name                = "ai-agent-pip"
+  name                = "openclaw-pip"
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
   allocation_method   = "Static"
@@ -44,7 +44,7 @@ resource "azurerm_public_ip" "pip" {
 
 # NSG (allow SSH)
 resource "azurerm_network_security_group" "nsg" {
-  name                = "ai-agent-nsg"
+  name                = "openclaw-nsg"
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
 
@@ -59,11 +59,24 @@ resource "azurerm_network_security_group" "nsg" {
     source_address_prefix      = "*"
     destination_address_prefix = "*"
   }
+
+  security_rule {
+    name                       = "Allow-SSH-2222"
+    priority                   = 1002
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "2222"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+  }
+
 }
 
 # Network Interface
 resource "azurerm_network_interface" "nic" {
-  name                = "ai-agent-nic"
+  name                = "openclaw-nic"
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
 
@@ -83,7 +96,7 @@ resource "azurerm_network_interface_security_group_association" "nsg_assoc" {
 
 # Linux VM
 resource "azurerm_linux_virtual_machine" "vm" {
-  name                = "ai-agent-vm"
+  name                = "clawdthebutler"
   resource_group_name = azurerm_resource_group.rg.name
   location            = azurerm_resource_group.rg.location
   size                = var.vm_size
