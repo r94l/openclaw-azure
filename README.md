@@ -1,6 +1,6 @@
 # 🦞 OpenClaw AI Agent on Azure — Terraform + Docker + Tailscale
 
-> Deploy a secure, 24/7 always-on AI agent on an Azure VM using Terraform for infrastructure provisioning, Docker for containerisation, and Tailscale for zero-trust private networking.
+> Deploy a secure, 24/7 always-on AI agent on an Azure VM using Terraform for infrastructure provisioning, Docker for containerization, and Tailscale for zero-trust private networking.
 
 Inspired by: [Deploy Your Own 24/7 AI Agent on AWS EC2 with Docker & Tailscale — The Secure Way](https://blog.thecloudopscommunity.org/deploy-your-own-24-7-ai-agent-on-aws-ec2-with-docker-tailscale-the-secure-way-e8e3dadde6a4) — adapted here for **Microsoft Azure** with **Terraform** as the IaC layer.
 
@@ -10,14 +10,14 @@ Inspired by: [Deploy Your Own 24/7 AI Agent on AWS EC2 with Docker & Tailscale �
 
 ```
 ┌────────────────────────────────────────────────────┐
-│                  Your Machine                       │
+│                  Your Machine                      │
 │  terraform apply ──► Azure VM (Ubuntu 22.04 LTS)   │
-│  ssh azureuser@<PUBLIC_IP>                          │
+│  ssh openclaw@<PUBLIC_IP>                          │
 └──────────────────────┬─────────────────────────────┘
                        │ SSH (port 22 via NSG)
                        ▼
 ┌────────────────────────────────────────────────────┐
-│               Azure VM                              │
+│               Azure VM                             │
 │  ┌──────────────────────────────────────────────┐  │
 │  │  Docker Container — OpenClaw Gateway         │  │
 │  │  Port 18789 (web UI, Tailscale-only)         │  │
@@ -64,9 +64,10 @@ The `terraform/` directory defines the full Azure infrastructure:
 - **Resource Group** — logical container for all resources
 - **Virtual Network (VNet)** + **Subnet** — isolated network layer
 - **Public IP** — static IP for SSH access
-- **Network Security Group (NSG)** — restricts inbound traffic to SSH only
-- **Linux VM** — Ubuntu 22.04 LTS (Standard_B1ms or similar)
-- **SSH key authentication** — password auth disabled
+- **openclaw user** - Openclaw user provisioned with sudo rights
+- **Network Security Group (NSG)** — restricts inbound traffic to port 22 and 2222
+- **Linux VM** — Ubuntu 22.04 LTS (Recommended specs: 2 vCPU, 4GB RAM, 15GB storage)
+- **SSH key authentication** — password auth disabled via terraform
 
 ---
 
@@ -96,7 +97,34 @@ Once complete, note the **public IP** output — you'll need it to SSH in.
 ## 🔐 Step 2 — SSH into the VM
 
 ```bash
-ssh -i ~/.ssh/openclaw-azure azureuser@<PUBLIC_IP>
+ssh -i ~/.ssh/openclaw-azure openclaw@<PUBLIC_IP>
+# Set default policies 
+sudo ufw default deny incoming 
+sudo ufw default allow outgoing 
+# Allow the CURRENT port (Safety Net) 
+sudo ufw allow 22/tcp 
+# Allow the FUTURE port 
+sudo ufw allow 2222/tcp 
+# Enable the firewall 
+sudo ufw enable
+When prompted, type y to confirm. You now have two layers of firewall protection.
+
+
+Before we change ports, we need to prove that our new user can log in with the SSH key.
+Now that we’ve verified key-based login works, it’s time to harden SSH.
+
+Disable Systemd Socket Activation (CRITICAL)
+Here’s the gotcha: Ubuntu 24.04 uses “socket activation” which holds Port 22 open regardless of what you put in sshd_config. You must disable this:
+
+# Stop the socket listener
+sudo systemctl stop ssh.socket 
+sudo systemctl disable ssh.socket 
+# Restart the SSH service to apply your new config 
+sudo systemctl restart ssh
+
+Only if that works, go back to your server terminal and lock down Port 22:
+Then go to NSG and delete the inbound rule for Port 22.
+
 ```
 
 > Replace `<PUBLIC_IP>` with the value from `terraform output` or the Azure portal.
@@ -122,7 +150,6 @@ Verify Docker is running:
 
 ```bash
 docker --version
-docker run hello-world
 ```
 
 ---
@@ -147,12 +174,18 @@ Clone the official OpenClaw repository:
 ```bash
 git clone https://github.com/openclaw/openclaw.git
 cd openclaw
+# Create the folder structure 
+mkdir -p /home/openclaw/.openclaw/workspace 
+# Give full read/write access (fixes the "Permission Denied" error) 
+sudo chmod -R 777 /home/openclaw/.openclaw 
+sudo chown -R openclaw:openclaw ~/openclaw 
+sudo chmod -R 775 ~/openclaw
 ```
 
 Run the official setup script, which uses Docker Compose and walks you through initial configuration:
 
 ```bash
-bash docker-setup.sh
+./docker-setup.sh
 ```
 
 The script creates two persistent directories on the host:
@@ -171,15 +204,25 @@ During the interactive setup wizard, you'll configure:
 - **Messaging channel** — Telegram is the easiest to configure (create a bot via `@BotFather` and provide the token)
 - **Gateway settings** — default port is `18789`
 
-> ⚠️ Never commit your `.env` file to Git. It contains your API keys and tokens.
+A series of prompts will appear. Select EXACTLY these options to avoid crashes:
 
-### Create a `.env` File
+Onboarding mode → Manual
+Setup Local gateway → (this machine)
+Workspace directory → (Press Enter to accept default)
+Model/auth Provider → Anthropic
+Anthropic API Key → (Enter your key)
+Gateway port → 18789
+Gateway bind → Tailnet
+Gateway auth → Token
+Tailscale exposure → Off
+Gateway Token → (Create a secure token)
+Configure chat channel → (Whatsapp/Telegram — your choice)
+Configure Skills → No
+Hooks → Skip for Now
 
-```bash
-cat > .env <<EOF
-ANTHROPIC_API_KEY=your-anthropic-api-key
-OPENAI_API_KEY=your-openai-api-key   # optional
-EOF
+Critical Warning: Do NOT select “Serve” for Tailscale exposure. This bypasses complex proxy logic that causes crashes. Select “Off” — Tailscale already handles secure access.
+
+Wait for completion. The container will start, but DO NOT LOGIN YET.
 ```
 
 ---
