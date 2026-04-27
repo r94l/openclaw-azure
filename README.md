@@ -131,13 +131,34 @@ Then go to NSG and delete the inbound rule for Port 22.
 
 ---
 
-## 🐳 Step 3 — Install Docker
+## 🐳 Step 3 — Install Docker and Docker Compose
 
 ```bash
+# Update system
 sudo apt update && sudo apt upgrade -y
-sudo apt install -y docker.io
+
+# Install dependencies
+sudo apt install -y apt-transport-https ca-certificates curl software-properties-common
+
+# Add Docker GPG key
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | \
+sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+
+# Add Docker repository
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] \
+https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | \
+sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+# Install Docker Engine + Compose plugin
+sudo apt update
+sudo apt install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+
+# Enable and start Docker
 sudo systemctl enable docker
 sudo systemctl start docker
+
+# Add current user to docker group (so no sudo needed)
+sudo usermod -aG docker $USER
 
 # Add your user to the docker group (avoids needing sudo for every docker command)
 sudo usermod -aG docker $USER
