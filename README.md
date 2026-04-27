@@ -113,6 +113,12 @@ When prompted, type y to confirm. You now have two layers of firewall protection
 Before we change ports, we need to prove that our new user can log in with the SSH key.
 Now that we’ve verified key-based login works, it’s time to harden SSH.
 
+# Change SSH port to 2222
+sed -i 's/^#\?Port.*/Port 2222/' /etc/ssh/sshd_config
+
+# Disable root login
+sed -i 's/^#\?PermitRootLogin.*/PermitRootLogin no/' /etc/ssh/sshd_config
+
 Disable Systemd Socket Activation (CRITICAL)
 Here’s the gotcha: Ubuntu 24.04 uses “socket activation” which holds Port 22 open regardless of what you put in sshd_config. You must disable this:
 
@@ -248,21 +254,30 @@ Wait for completion. The container will start, but DO NOT LOGIN YET.
 
 ---
 
-## 🚀 Step 6 — Start the Agent
+## 🚀 Step 6 — The “Insecure Auth” Injection
 
 ```bash
-# Run onboarding (first time only)
-docker compose run --rm openclaw-cli onboard
+At this stage, the bot is running but will block your browser because you’re connecting over HTTP (not HTTPS). Since Tailscale already encrypts our traffic end-to-end, we can safely enable HTTP authentication.
 
-# Start the gateway in the background
-docker compose up -d openclaw-gateway
+First, install jq inside the container:
+docker compose exec -u root openclaw-gateway bash -c "apt update && apt install -y jq"
+
+Then inject the setting:
+docker compose exec -T openclaw-gateway bash -c ' jq ".gateway.controlUi.allowInsecureAuth = true" \ /home/node/.openclaw/openclaw.json > /home/node/.openclaw/tmp.json && \ mv /home/node/.openclaw/tmp.json /home/node/.openclaw/openclaw.json'
+
+Restart the bot to apply changes:
+docker compose restart
 ```
 
 Verify the container is running and healthy:
 
 ```bash
 docker ps
-docker logs -f openclaw-openclaw-gateway-1
+
+Get Your Tailscale IP
+tailscale ip -4
+
+
 ```
 
 ---
@@ -276,6 +291,7 @@ http://<TAILSCALE_IP>:18789
 ```
 
 The dashboard requires a session token. Retrieve it with:
+Enter the Gateway Token you created during setup and click Connect.
 
 ```bash
 docker compose run --rm openclaw-cli dashboard --no-open
@@ -285,15 +301,9 @@ Copy the full URL including the `?token=...` parameter and open it in your brows
 
 ---
 
-## 📱 Step 8 — Pair Your Messaging Platform (Telegram)
+Congratulations! You now have a private AI assistant running on your own infrastructure, accessible only through your secure Tailscale network.
 
-If you chose Telegram during setup, OpenClaw will send your bot a pairing code. Approve it with:
-
-```bash
-docker compose run --rm openclaw-cli pairing approve telegram <CODE>
-```
-
-You can now send instructions to your AI agent directly from your phone via Telegram — 24/7.
+You can now send instructions to your AI agent directly from your phone via Telegram/Whatsapp — 24/7.
 
 ---
 
@@ -318,6 +328,13 @@ docker compose exec openclaw-gateway bash
 # Run CLI commands
 docker compose run --rm openclaw-cli <command>
 ```
+Set API Spend Limits
+Agentic AI can sometimes get stuck in loops and burn through API credits rapidly. Protect yourself:
+
+Go to your Anthropic Console
+Navigate to Settings → Limits
+Set a hard monthly budget (e.g., $20)
+Do the same for OpenAI if you configured it as a backup.
 
 ---
 
