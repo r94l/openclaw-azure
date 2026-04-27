@@ -98,17 +98,24 @@ Once complete, note the **public IP** output — you'll need it to SSH in.
 
 ```bash
 ssh -i ~/.ssh/openclaw-azure openclaw@<PUBLIC_IP>
+
+# Update system 
+sudo apt update && sudo apt upgrade -y 
+
 # Set default policies 
 sudo ufw default deny incoming 
-sudo ufw default allow outgoing 
+sudo ufw default allow outgoing
+
 # Allow the CURRENT port (Safety Net) 
-sudo ufw allow 22/tcp 
+sudo ufw allow 22/tcp
+ 
 # Allow the FUTURE port 
-sudo ufw allow 2222/tcp 
+sudo ufw allow 2222/tcp
+
 # Enable the firewall 
 sudo ufw enable
-When prompted, type y to confirm. You now have two layers of firewall protection.
 
+When prompted, type y to confirm. You now have two layers of firewall protection.
 
 Before we change ports, we need to prove that our new user can log in with the SSH key.
 Now that we’ve verified key-based login works, it’s time to harden SSH.
